@@ -1,0 +1,96 @@
+#lang racket
+(require racket/runtime-path
+         web-server/servlet
+         web-server/servlet-env)
+
+(struct post [maker title img side])
+
+(define (start request)
+  (render-blog-page request))
+
+; render-blog-page: blog request -> response
+; consumes a blog and a request, and produces an HTML page
+(define (render-blog-page request)
+  (define POSTS-RAW (directory-list))
+  
+  (response/xexpr
+   `(html (head (title "THE BLUE CHURCH")
+                (meta ((charset "utf-8")))
+                (meta ((name "description") (content "Indie fashion for the soul.")))
+                (meta ((name "viewport") (content "width=device-width, initial-scale=1.0, shrink-to-fit=no")))
+                (link ((rel "stylesheet") (href "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.1/css/bootstrap.min.css")))
+                (link ((rel "stylesheet") (href "https://fonts.googleapis.com/css?family=Aref+Ruqaa")))
+                (link ((rel "stylesheet") (href "https://fonts.googleapis.com/css?family=Poppins:400,500")))
+                (link ((rel "stylesheet") (href "/css/styles.css")
+                                          (type "text/css"))))
+          (body (div ((class "main"))
+                     (div ((class "d-flex d-sm-flex d-md-flex flex-column align-items-center"))
+                          (div ((class "divider")))
+                          (div ((class "header-wrap"))
+                               (div ((class "title-wrap d-flex flex-column align-items-xl-start"))
+                                    (div ((class "d-flex flex-grow-1"))
+                                         (span "THE")
+                                         (span ((class "text-justify tag-line")) "INDIE FASHION FOR THE SOUL")
+                                         )
+                                    (div ((class "d-flex flex-wrap"))
+                                         (span ((class "text-left")) "BLUE\u00A0")
+                                         (span ((class "text-left")) "CHURCH")
+                                         ;,@(foldr string-append " " (map (lambda (n) (some-system-path->string n)) POSTS-RAW))
+                                         ,(render-paths "huh")
+                                         )
+                               )
+                               (p ((class "text-left jist-par"))
+                                       "Here to show off the new, the local, the underground, the diy, the hard to come by. Always accepting →"
+                                       (a ((href "mailto:jacob.t.wright@ucdenver.edu") (class "sub-link")) "submissions")
+                                       "←")
+                               )
+                          (div ((class "divider")))
+                          (p ((class "text-left align-self-center welcome")) "Glad you're here, hope you enjoy the visit ↯↯↯")
+                          (div ((class "divider welcome-bottom-div")))
+                          (div ((class "content-wrap"))
+                               
+                     )
+                )
+          )
+   )
+  )
+  )
+  )
+
+(define (render-paths i)
+  (foldr string-append " " (map (lambda (n) (some-system-path->string n)) (directory-list))))
+
+(define (background-img n)
+  (string-join `("background-image: url('" ,(string-replace n "\\" "/") "');") ""))
+
+(define (render-pieces lop)
+  (map (lambda (x)
+         `(div ((class "shadow-none d-flex d-lg flex flex-column justify-content-lg-end my-card"))
+               (div ((class ,(string-join `("card-img" ,(if (equal? (post-side x) "front.png") "has-back" ""))))
+                     (style ,(background-img (substring
+                                              (path->string
+                                               (post-img x)) 6)))))
+               (p ((class "text-center card-title")) (strong ,(substring (post-maker x) 14))
+                  (br)
+                  ,(first (string-split (post-title x) ".png"))
+                  )
+                               )) (filter (lambda (x)
+                                            (not (equal? (post-side x) "back.png")))
+                                            lop))
+  )
+
+(define port (if (getenv "PORT")
+                 (string->number (getenv "PORT"))
+                 8080))
+
+(define-runtime-path assets-path "assets")
+
+(serve/servlet start
+               #:command-line? #t
+               #:listen-ip #f
+               #:port port
+               #:extra-files-paths
+               (list assets-path)
+               #:servlet-path
+               "/")
+
